@@ -1,0 +1,3 @@
+spring:
+  application:
+    name: digibank_account_service
