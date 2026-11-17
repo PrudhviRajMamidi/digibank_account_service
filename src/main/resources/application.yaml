@@ -1,3 +1,8 @@
 spring:
   application:
     name: digibank_account_service
+
+server:
+  port: 8082
+  servlet:
+    context-path: /digibank/account
