@@ -1,9 +1,14 @@
+
 package app.boot.digibank_account_service.service;
 
+import app.boot.digibank_account_service.mapper.UserMapper;
 import app.boot.digibank_account_service.model.User;
 import app.boot.digibank_account_service.repository.UserRepository;
-import app.boot.digibank_account_service.service.impl.UserServiceImpl;
+import app.boot.digibank_account_service.requestDto.UserRegistrationRequest;
+import app.boot.digibank_account_service.requestDto.UserUpdateRequest;
+import app.boot.digibank_account_service.responseDto.UserResponse;
 
+import app.boot.digibank_account_service.service.impl.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,10 +35,16 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private UserMapper userMapper;
+
     @InjectMocks
     private UserServiceImpl userService;
 
     private User user;
+    private UserResponse userResponse;
+    private UserRegistrationRequest registrationRequest;
+    private UserUpdateRequest updateRequest;
 
     @BeforeEach
     void setUp() {
@@ -42,220 +54,342 @@ class UserServiceTest {
                 .customerId("12345678901")
                 .firstName("John")
                 .lastName("Doe")
-                .email("john@example.com")
+                .email("john.doe@gmail.com")
+                .mobileNumber("9876543210")
+                .password("encodedPassword")
+                .build();
+
+        userResponse = UserResponse.builder()
+                .id(1L)
+                .customerId("12345678901")
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
+                .mobileNumber("9876543210")
+                .build();
+
+        registrationRequest = UserRegistrationRequest.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
                 .mobileNumber("9876543210")
                 .password("Password@123")
-                .aadhaarNumber("123456789012")
-                .panNumber("ABCDE1234F")
+                .build();
+
+        updateRequest = UserUpdateRequest.builder()
+                .firstName("UpdatedJohn")
                 .build();
     }
 
-    // 1. Create user successfully
+    // ------------------------------------------------
+    // CREATE USER TESTS
+    // ------------------------------------------------
+
     @Test
-    void createUser_Success() {
+    void createUser_ShouldReturnUserResponse_WhenValidRequestIsProvided() {
 
-        when(userRepository.existsByCustomerId(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByMobileNumber(anyString())).thenReturn(false);
-        when(userRepository.existsByAadhaarNumber(anyString())).thenReturn(false);
-        when(userRepository.existsByPanNumber(anyString())).thenReturn(false);
+        when(userRepository.existsByEmail(registrationRequest.getEmail()))
+                .thenReturn(false);
 
-        when(passwordEncoder.encode("Password@123"))
+        when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
+                .thenReturn(false);
+
+        when(userRepository.existsByAadhaarNumber(any()))
+                .thenReturn(false);
+
+        when(userRepository.existsByPanNumber(any()))
+                .thenReturn(false);
+
+        when(userMapper.toEntity(registrationRequest))
+                .thenReturn(user);
+
+        when(passwordEncoder.encode(registrationRequest.getPassword()))
                 .thenReturn("encodedPassword");
 
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        User result = userService.createUser(user);
+        when(userMapper.toResponse(any(User.class)))
+                .thenReturn(userResponse);
+
+        UserResponse result = userService.createUser(registrationRequest);
 
         assertNotNull(result);
-        assertEquals("encodedPassword", result.getPassword());
+        assertEquals("John", result.getFirstName());
+        assertEquals("john.doe@gmail.com", result.getEmail());
 
-        verify(userRepository).save(user);
+        verify(userRepository).save(any(User.class));
+        verify(passwordEncoder).encode(registrationRequest.getPassword());
+        verify(userMapper).toResponse(any(User.class));
     }
 
-    // 2. Duplicate customer ID
     @Test
-    void createUser_DuplicateCustomerId_ThrowsException() {
+    void createUser_ShouldThrowException_WhenEmailAlreadyExists() {
 
-        when(userRepository.existsByCustomerId("12345678901"))
+        when(userRepository.existsByEmail(registrationRequest.getEmail()))
                 .thenReturn(true);
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> userService.createUser(user)
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.createUser(registrationRequest));
 
-        assertEquals("Customer ID already exists",
-                exception.getMessage());
-
-        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).save(any(User.class));
     }
 
-    // 3. Duplicate email
     @Test
-    void createUser_DuplicateEmail_ThrowsException() {
+    void createUser_ShouldThrowException_WhenMobileNumberAlreadyExists() {
 
-        when(userRepository.existsByCustomerId(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(true);
+        when(userRepository.existsByEmail(registrationRequest.getEmail()))
+                .thenReturn(false);
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> userService.createUser(user)
-        );
-
-        assertEquals("Email already exists", exception.getMessage());
-
-        verify(userRepository, never()).save(any());
-    }
-
-    // 4. Duplicate mobile number
-    @Test
-    void createUser_DuplicateMobileNumber_ThrowsException() {
-
-        when(userRepository.existsByCustomerId(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByMobileNumber("9876543210"))
+        when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
                 .thenReturn(true);
 
-        assertThrows(RuntimeException.class,
-                () -> userService.createUser(user));
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.createUser(registrationRequest));
 
-        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).save(any(User.class));
     }
 
-    // 5. Duplicate Aadhaar
     @Test
-    void createUser_DuplicateAadhaar_ThrowsException() {
+    void createUser_ShouldThrowException_WhenAadhaarAlreadyExists() {
 
-        when(userRepository.existsByCustomerId(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByMobileNumber(anyString())).thenReturn(false);
-        when(userRepository.existsByAadhaarNumber("123456789012"))
+        when(userRepository.existsByEmail(registrationRequest.getEmail()))
+                .thenReturn(false);
+
+        when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
+                .thenReturn(false);
+
+        when(userRepository.existsByAadhaarNumber(any()))
                 .thenReturn(true);
 
-        assertThrows(RuntimeException.class,
-                () -> userService.createUser(user));
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.createUser(registrationRequest));
 
-        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).save(any(User.class));
     }
 
-    // 6. Duplicate PAN
     @Test
-    void createUser_DuplicatePAN_ThrowsException() {
+    void createUser_ShouldThrowException_WhenPanAlreadyExists() {
 
-        when(userRepository.existsByCustomerId(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByMobileNumber(anyString())).thenReturn(false);
-        when(userRepository.existsByAadhaarNumber(anyString())).thenReturn(false);
-        when(userRepository.existsByPanNumber("ABCDE1234F"))
+        when(userRepository.existsByEmail(registrationRequest.getEmail()))
+                .thenReturn(false);
+
+        when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
+                .thenReturn(false);
+
+        when(userRepository.existsByAadhaarNumber(any()))
+                .thenReturn(false);
+
+        when(userRepository.existsByPanNumber(any()))
                 .thenReturn(true);
 
-        assertThrows(RuntimeException.class,
-                () -> userService.createUser(user));
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.createUser(registrationRequest));
 
-        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).save(any(User.class));
     }
 
-    // 7. Get user by ID
+    // ------------------------------------------------
+    // GET USER BY ID TESTS
+    // ------------------------------------------------
+
     @Test
-    void getUserById_Success() {
+    void getUserById_ShouldReturnUserResponse_WhenUserExists() {
 
         when(userRepository.findById(1L))
                 .thenReturn(Optional.of(user));
 
-        User result = userService.getUserById(1L);
+        when(userMapper.toResponse(user))
+                .thenReturn(userResponse);
+
+        UserResponse result = userService.getUserById(1L);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals("John", result.getFirstName());
+
+        verify(userRepository).findById(1L);
+        verify(userMapper).toResponse(user);
     }
 
-    // 8. Get user by ID - not found
     @Test
-    void getUserById_NotFound_ThrowsException() {
+    void getUserById_ShouldThrowException_WhenUserDoesNotExist() {
 
-        when(userRepository.findById(100L))
+        when(userRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class,
-                () -> userService.getUserById(100L));
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.getUserById(1L));
+
+        verify(userMapper, never()).toResponse(any(User.class));
     }
 
-    // 9. Get user by customer ID
+    // ------------------------------------------------
+    // GET USER BY CUSTOMER ID TESTS
+    // ------------------------------------------------
+
     @Test
-    void getUserByCustomerId_Success() {
+    void getUserByCustomerId_ShouldReturnUserResponse_WhenUserExists() {
 
         when(userRepository.findByCustomerId("12345678901"))
                 .thenReturn(Optional.of(user));
 
-        User result =
-                userService.getUserByCustomerId("12345678901");
+        when(userMapper.toResponse(user))
+                .thenReturn(userResponse);
+
+        UserResponse result = userService.getUserByCustomerId("12345678901");
 
         assertNotNull(result);
         assertEquals("12345678901", result.getCustomerId());
+        assertEquals("John", result.getFirstName());
+
+        verify(userRepository).findByCustomerId("12345678901");
     }
 
-    // 10. Get all users
     @Test
-    void getAllUsers_Success() {
+    void getUserByCustomerId_ShouldThrowException_WhenUserDoesNotExist() {
+
+        when(userRepository.findByCustomerId("12345678901"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.getUserByCustomerId("12345678901"));
+
+        verify(userMapper, never()).toResponse(any(User.class));
+    }
+
+    // ------------------------------------------------
+    // GET ALL USERS TESTS
+    // ------------------------------------------------
+
+    @Test
+    void getAllUsers_ShouldReturnListOfUserResponses() {
+
+        User secondUser = User.builder()
+                .id(2L)
+                .customerId("12345678902")
+                .firstName("Jane")
+                .lastName("Doe")
+                .email("jane.doe@gmail.com")
+                .build();
+
+        UserResponse secondResponse = UserResponse.builder()
+                .id(2L)
+                .customerId("12345678902")
+                .firstName("Jane")
+                .lastName("Doe")
+                .email("jane.doe@gmail.com")
+                .build();
 
         when(userRepository.findAll())
-                .thenReturn(List.of(user));
+                .thenReturn(List.of(user, secondUser));
 
-        List<User> result = userService.getAllUsers();
+        when(userMapper.toResponse(user))
+                .thenReturn(userResponse);
 
-        assertEquals(1, result.size());
-        assertEquals("John", result.getFirst().getFirstName());
+        when(userMapper.toResponse(secondUser))
+                .thenReturn(secondResponse);
+
+        List<UserResponse> result = userService.getAllUsers();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals("John", result.get(0).getFirstName());
+        assertEquals("Jane", result.get(1).getFirstName());
+
+        verify(userRepository).findAll();
+        verify(userMapper, times(2)).toResponse(any(User.class));
     }
 
-    // 11. Update user
     @Test
-    void updateUser_Success() {
+    void getAllUsers_ShouldReturnEmptyList_WhenNoUsersExist() {
+
+        when(userRepository.findAll())
+                .thenReturn(List.of());
+
+        List<UserResponse> result = userService.getAllUsers();
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+
+        verify(userRepository).findAll();
+        verify(userMapper, never()).toResponse(any(User.class));
+    }
+
+    // ------------------------------------------------
+    // UPDATE USER TESTS
+    // ------------------------------------------------
+
+    @Test
+    void updateUser_ShouldReturnUpdatedUserResponse_WhenUserExists() {
+
+        UserResponse updatedResponse = UserResponse.builder()
+                .id(1L)
+                .customerId("12345678901")
+                .firstName("UpdatedJohn")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
+                .build();
 
         when(userRepository.findById(1L))
                 .thenReturn(Optional.of(user));
 
-        when(userRepository.save(any(User.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(user))
+                .thenReturn(user);
 
-        User updatedUser = User.builder()
-                .firstName("Updated")
-                .lastName("Doe")
-                .email("updated@example.com")
-                .mobileNumber("9876543210")
-                .build();
+        when(userMapper.toResponse(user))
+                .thenReturn(updatedResponse);
 
-        User result = userService.updateUser(1L, updatedUser);
+        UserResponse result = userService.updateUser(1L, updateRequest);
 
-        assertEquals("Updated", result.getFirstName());
-        assertEquals("updated@example.com", result.getEmail());
+        assertNotNull(result);
+        assertEquals("UpdatedJohn", result.getFirstName());
 
+        verify(userRepository).findById(1L);
+        verify(userMapper).updateUserFromRequest(updateRequest, user);
         verify(userRepository).save(user);
+        verify(userMapper).toResponse(user);
     }
 
-    // 12. Delete user
     @Test
-    void deleteUser_Success() {
+    void updateUser_ShouldThrowException_WhenUserDoesNotExist() {
+
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUser(1L, updateRequest));
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(userMapper, never())
+                .updateUserFromRequest(any(UserUpdateRequest.class), any(User.class));
+    }
+
+    // ------------------------------------------------
+    // DELETE USER TESTS
+    // ------------------------------------------------
+
+    @Test
+    void deleteUser_ShouldDeleteUser_WhenUserExists() {
 
         when(userRepository.findById(1L))
                 .thenReturn(Optional.of(user));
 
         userService.deleteUser(1L);
 
+        verify(userRepository).findById(1L);
         verify(userRepository).delete(user);
     }
 
-    // 13. Delete user - not found
     @Test
-    void deleteUser_NotFound_ThrowsException() {
+    void deleteUser_ShouldThrowException_WhenUserDoesNotExist() {
 
-        when(userRepository.findById(100L))
+        when(userRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class,
-                () -> userService.deleteUser(100L));
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.deleteUser(1L));
 
-        verify(userRepository, never()).delete(any());
+        verify(userRepository, never()).delete(any(User.class));
     }
 }

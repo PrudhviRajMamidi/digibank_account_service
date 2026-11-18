@@ -1,7 +1,9 @@
 
 package app.boot.digibank_account_service.controller;
 
-import app.boot.digibank_account_service.model.User;
+import app.boot.digibank_account_service.requestDto.UserRegistrationRequest;
+import app.boot.digibank_account_service.requestDto.UserUpdateRequest;
+import app.boot.digibank_account_service.responseDto.UserResponse;
 import app.boot.digibank_account_service.service.UserService;
 
 import jakarta.validation.Valid;
@@ -21,57 +23,77 @@ public class UserController {
 
     private final UserService userService;
 
-    // Create User
-    @PostMapping
-    public ResponseEntity<User> createUser(
-            @Valid @RequestBody User user) {
+    // --------------------------------------------------
+    // REGISTER USER
+    // POST /digibank/user/register
+    // --------------------------------------------------
+    @PostMapping("/register")
+    public ResponseEntity<UserResponse> createUser(
+            @Valid @RequestBody UserRegistrationRequest request) {
 
-        User createdUser = userService.createUser(user);
+        UserResponse response = userService.createUser(request);
 
-        return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
     }
 
-    // Get User By ID
+    // --------------------------------------------------
+    // GET USER BY ID
+    // GET /digibank/user/{id}
+    // --------------------------------------------------
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(
+    public ResponseEntity<UserResponse> getUserById(
             @PathVariable Long id) {
 
-        User user = userService.getUserById(id);
+        UserResponse response = userService.getUserById(id);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(response);
     }
 
-    // Get User By Customer ID
+    // --------------------------------------------------
+    // GET USER BY CUSTOMER ID
+    // GET /digibank/user/customer/{customerId}
+    // --------------------------------------------------
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<User> getUserByCustomerId(
+    public ResponseEntity<UserResponse> getUserByCustomerId(
             @PathVariable String customerId) {
 
-        User user = userService.getUserByCustomerId(customerId);
+        UserResponse response = userService.getUserByCustomerId(customerId);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(response);
     }
 
-    // Get All Users
+    // --------------------------------------------------
+    // GET ALL USERS
+    // GET /digibank/user
+    // --------------------------------------------------
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
 
-        List<User> users = userService.getAllUsers();
+        List<UserResponse> users = userService.getAllUsers();
 
         return ResponseEntity.ok(users);
     }
 
-    // Update User
-    @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(
+    // --------------------------------------------------
+    // UPDATE USER
+    // PATCH /digibank/user/{id}
+    // --------------------------------------------------
+    @PatchMapping("/{id}")
+    public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody User user) {
+            @Valid @RequestBody UserUpdateRequest request) {
 
-        User updatedUser = userService.updateUser(id, user);
+        UserResponse response = userService.updateUser(id, request);
 
-        return ResponseEntity.ok(updatedUser);
+        return ResponseEntity.ok(response);
     }
 
-    // Delete User
+    // --------------------------------------------------
+    // DELETE USER
+    // DELETE /digibank/user/{id}
+    // --------------------------------------------------
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(
             @PathVariable Long id) {

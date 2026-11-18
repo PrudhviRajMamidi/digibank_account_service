@@ -1,21 +1,22 @@
-
 package app.boot.digibank_account_service.service;
 
-import app.boot.digibank_account_service.model.User;
+import app.boot.digibank_account_service.requestDto.UserRegistrationRequest;
+import app.boot.digibank_account_service.requestDto.UserUpdateRequest;
+import app.boot.digibank_account_service.responseDto.UserResponse;
 
 import java.util.List;
 
 public interface UserService {
 
-    User createUser(User user);
+    UserResponse createUser(UserRegistrationRequest request);
 
-    User getUserById(Long id);
+    UserResponse getUserById(Long id);
 
-    User getUserByCustomerId(String customerId);
+    UserResponse getUserByCustomerId(String customerId);
 
-    List<User> getAllUsers();
+    List<UserResponse> getAllUsers();
 
-    User updateUser(Long id, User user);
+    UserResponse updateUser(Long id, UserUpdateRequest request);
 
     void deleteUser(Long id);
 }
