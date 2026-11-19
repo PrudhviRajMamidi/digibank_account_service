@@ -1,3 +1,4 @@
+
 package app.boot.digibank_account_service.responseDto;
 
 import app.boot.digibank_account_service.enums.Country;
@@ -45,13 +46,31 @@ public class UserResponse {
 
     private Country country;
 
+    private String preferredLanguage;
+
+    private String profileImageUrl;
+
+    private String alternateMobileNumber;
+
+    private String occupation;
+
+    private String maritalStatus;
+
+    private String nationality;
+
     private Role role;
 
     private UserStatus status;
 
-    private boolean emailVerified;
+    private Boolean emailVerified;
 
-    private boolean phoneNumberVerified;
+    private Boolean phoneNumberVerified;
+
+    private LocalDateTime lastLoginAt;
+
+    private LocalDateTime passwordChangedAt;
+
+    private LocalDateTime lastPasswordResetAt;
 
     private LocalDateTime createdAt;
 

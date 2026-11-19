@@ -1,8 +1,10 @@
 
 package app.boot.digibank_account_service.service.impl;
 
+import app.boot.digibank_account_service.exception.ResourceNotFoundException;
 import app.boot.digibank_account_service.mapper.UserMapper;
 import app.boot.digibank_account_service.model.User;
+import app.boot.digibank_account_service.repository.AccountRepository;
 import app.boot.digibank_account_service.repository.UserRepository;
 import app.boot.digibank_account_service.requestDto.UserRegistrationRequest;
 import app.boot.digibank_account_service.requestDto.UserUpdateRequest;
@@ -24,86 +26,56 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final AccountRepository accountRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private final SecureRandom secureRandom = new SecureRandom();
 
-    // --------------------------------------------------
-    // CREATE USER
-    // --------------------------------------------------
+    // Register a new customer
     @Override
     public UserResponse createUser(UserRegistrationRequest request) {
 
-        // Validate duplicate email
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
-        }
+        validateDuplicateUserDetails(request);
 
-        // Validate duplicate mobile number
-        if (userRepository.existsByMobileNumber(request.getMobileNumber())) {
-            throw new IllegalArgumentException("Mobile number already exists");
-        }
-
-        // Validate duplicate Aadhaar number
-        if (userRepository.existsByAadhaarNumber(request.getAadhaarNumber())) {
-            throw new IllegalArgumentException("Aadhaar number already exists");
-        }
-
-        // Validate duplicate PAN number
-        if (userRepository.existsByPanNumber(request.getPanNumber())) {
-            throw new IllegalArgumentException("PAN number already exists");
-        }
-
-        // Convert registration DTO to entity
         User user = userMapper.toEntity(request);
 
-        // Generate unique customer ID
         user.setCustomerId(generateCustomerId());
 
-        // Encrypt password
+        // Encrypt password before saving
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // Save user to database
         User savedUser = userRepository.save(user);
 
-        // Convert entity to response DTO
         return userMapper.toResponse(savedUser);
     }
 
-    // --------------------------------------------------
-    // GET USER BY ID
-    // --------------------------------------------------
+    // Get customer by database ID
     @Override
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
 
         User user = userRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "User not found with ID: " + id));
-
         return userMapper.toResponse(user);
     }
 
-    // --------------------------------------------------
-    // GET USER BY CUSTOMER ID
-    // --------------------------------------------------
+    // Get customer by customer ID
     @Override
     @Transactional(readOnly = true)
     public UserResponse getUserByCustomerId(String customerId) {
 
         User user = userRepository.findByCustomerId(customerId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found with Customer ID: " + customerId));
+                        new ResourceNotFoundException(
+                                "User not found with customer ID: " + customerId));
 
         return userMapper.toResponse(user);
     }
 
-    // --------------------------------------------------
-    // GET ALL USERS
-    // --------------------------------------------------
+    // Retrieve all customers
     @Override
     @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers() {
@@ -114,57 +86,83 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
-    // --------------------------------------------------
-    // UPDATE USER
-    // --------------------------------------------------
+    // Update customer profile
     @Override
-    public UserResponse updateUser(Long id, UserUpdateRequest request) {
+    public UserResponse updateUser(
+            Long id,
+            UserUpdateRequest request) {
 
-        User existingUser = userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "User not found with ID: " + id));
 
-        // Update only fields provided in request
-        userMapper.updateUserFromRequest(request, existingUser);
+        userMapper.updateUserFromRequest(request, user);
 
-        // Save updated user
-        User updatedUser = userRepository.save(existingUser);
+        User updatedUser = userRepository.save(user);
 
-        // Convert entity to response DTO
         return userMapper.toResponse(updatedUser);
     }
 
-    // --------------------------------------------------
-    // DELETE USER
-    // --------------------------------------------------
+    // Delete customer
     @Override
     public void deleteUser(Long id) {
 
-        User existingUser = userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "User not found with ID: " + id));
 
-        userRepository.delete(existingUser);
+        if (accountRepository.existsByUser_Id(id)) {
+
+            throw new IllegalStateException(
+                    "Customer cannot be deleted while bank accounts exist");
+        }
+
+        userRepository.delete(user);
     }
 
-    // --------------------------------------------------
-    // GENERATE CUSTOMER ID
-    // --------------------------------------------------
+    // Validate duplicate registration details
+    private void validateDuplicateUserDetails(
+            UserRegistrationRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalStateException(
+                    "Email address is already registered");
+        }
+
+        if (userRepository.existsByMobileNumber(
+                request.getMobileNumber())) {
+
+            throw new IllegalStateException(
+                    "Mobile number is already registered");
+        }
+
+        if (userRepository.existsByAadhaarNumber(
+                request.getAadhaarNumber())) {
+
+            throw new IllegalStateException(
+                    "Aadhaar number is already registered");
+        }
+
+        if (userRepository.existsByPanNumber(
+                request.getPanNumber())) {
+
+            throw new IllegalStateException(
+                    "PAN number is already registered");
+        }
+    }
+
+    // Generate unique 11-digit customer ID starting with 1
     private String generateCustomerId() {
 
         String customerId;
 
         do {
-            // Generate 11-digit customer ID starting with 1
-            StringBuilder id = new StringBuilder("1");
-
-            for (int i = 0; i < 10; i++) {
-                id.append(SECURE_RANDOM.nextInt(10));
-            }
-
-            customerId = id.toString();
+            customerId = "1" + String.format(
+                    "%010d",
+                    secureRandom.nextLong(10_000_000_000L)
+            );
 
         } while (userRepository.existsByCustomerId(customerId));
 
