@@ -1,11 +1,10 @@
 
 package app.boot.digibank_account_service.mapper;
 
+import app.boot.digibank_account_service.model.User;
 import app.boot.digibank_account_service.requestDto.UserRegistrationRequest;
 import app.boot.digibank_account_service.requestDto.UserUpdateRequest;
 import app.boot.digibank_account_service.responseDto.UserResponse;
-import app.boot.digibank_account_service.model.User;
-
 import org.springframework.stereotype.Component;
 
 @Component
@@ -34,10 +33,16 @@ public class UserMapper {
                 .state(request.getState())
                 .pincode(request.getPincode())
                 .country(request.getCountry())
+                .preferredLanguage(request.getPreferredLanguage())
+                .profileImageUrl(request.getProfileImageUrl())
+                .alternateMobileNumber(request.getAlternateMobileNumber())
+                .occupation(request.getOccupation())
+                .maritalStatus(request.getMaritalStatus())
+                .nationality(request.getNationality())
                 .build();
     }
 
-    // Convert User entity to UserResponse DTO
+    // Convert User entity to UserResponse
     public UserResponse toResponse(User user) {
 
         if (user == null) {
@@ -59,16 +64,25 @@ public class UserMapper {
                 .state(user.getState())
                 .pincode(user.getPincode())
                 .country(user.getCountry())
+                .preferredLanguage(user.getPreferredLanguage())
+                .profileImageUrl(user.getProfileImageUrl())
+                .alternateMobileNumber(user.getAlternateMobileNumber())
+                .occupation(user.getOccupation())
+                .maritalStatus(user.getMaritalStatus())
+                .nationality(user.getNationality())
                 .role(user.getRole())
                 .status(user.getStatus())
                 .emailVerified(user.isEmailVerified())
                 .phoneNumberVerified(user.isPhoneNumberVerified())
+                .lastLoginAt(user.getLastLoginAt())
+                .passwordChangedAt(user.getPasswordChangedAt())
+                .lastPasswordResetAt(user.getLastPasswordResetAt())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
     }
 
-    // Update existing User entity using UserUpdateRequest
+    // Update existing User entity from UserUpdateRequest
     public void updateUserFromRequest(
             UserUpdateRequest request,
             User user) {
@@ -115,6 +129,31 @@ public class UserMapper {
 
         if (request.getCountry() != null) {
             user.setCountry(request.getCountry());
+        }
+
+        if (request.getPreferredLanguage() != null) {
+            user.setPreferredLanguage(request.getPreferredLanguage());
+        }
+
+        if (request.getProfileImageUrl() != null) {
+            user.setProfileImageUrl(request.getProfileImageUrl());
+        }
+
+        if (request.getAlternateMobileNumber() != null) {
+            user.setAlternateMobileNumber(
+                    request.getAlternateMobileNumber());
+        }
+
+        if (request.getOccupation() != null) {
+            user.setOccupation(request.getOccupation());
+        }
+
+        if (request.getMaritalStatus() != null) {
+            user.setMaritalStatus(request.getMaritalStatus());
+        }
+
+        if (request.getNationality() != null) {
+            user.setNationality(request.getNationality());
         }
     }
 }

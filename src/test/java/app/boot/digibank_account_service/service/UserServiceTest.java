@@ -1,14 +1,16 @@
 
 package app.boot.digibank_account_service.service;
 
+import app.boot.digibank_account_service.exception.ResourceNotFoundException;
 import app.boot.digibank_account_service.mapper.UserMapper;
 import app.boot.digibank_account_service.model.User;
+import app.boot.digibank_account_service.repository.AccountRepository;
 import app.boot.digibank_account_service.repository.UserRepository;
 import app.boot.digibank_account_service.requestDto.UserRegistrationRequest;
 import app.boot.digibank_account_service.requestDto.UserUpdateRequest;
 import app.boot.digibank_account_service.responseDto.UserResponse;
-
 import app.boot.digibank_account_service.service.impl.UserServiceImpl;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AccountRepository accountRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -74,6 +79,8 @@ class UserServiceTest {
                 .email("john.doe@gmail.com")
                 .mobileNumber("9876543210")
                 .password("Password@123")
+                .aadhaarNumber("123456789012")
+                .panNumber("ABCDE1234F")
                 .build();
 
         updateRequest = UserUpdateRequest.builder()
@@ -81,34 +88,26 @@ class UserServiceTest {
                 .build();
     }
 
-    // ------------------------------------------------
     // CREATE USER TESTS
-    // ------------------------------------------------
 
     @Test
     void createUser_ShouldReturnUserResponse_WhenValidRequestIsProvided() {
 
         when(userRepository.existsByEmail(registrationRequest.getEmail()))
                 .thenReturn(false);
-
         when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
                 .thenReturn(false);
-
-        when(userRepository.existsByAadhaarNumber(any()))
+        when(userRepository.existsByAadhaarNumber(registrationRequest.getAadhaarNumber()))
                 .thenReturn(false);
-
-        when(userRepository.existsByPanNumber(any()))
+        when(userRepository.existsByPanNumber(registrationRequest.getPanNumber()))
                 .thenReturn(false);
 
         when(userMapper.toEntity(registrationRequest))
                 .thenReturn(user);
-
         when(passwordEncoder.encode(registrationRequest.getPassword()))
                 .thenReturn("encodedPassword");
-
         when(userRepository.save(any(User.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-
         when(userMapper.toResponse(any(User.class)))
                 .thenReturn(userResponse);
 
@@ -117,6 +116,9 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals("John", result.getFirstName());
         assertEquals("john.doe@gmail.com", result.getEmail());
+        assertNotNull(user.getCustomerId());
+        assertTrue(user.getCustomerId().matches("1\\d{10}"));
+        assertEquals("encodedPassword", user.getPassword());
 
         verify(userRepository).save(any(User.class));
         verify(passwordEncoder).encode(registrationRequest.getPassword());
@@ -129,7 +131,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail(registrationRequest.getEmail()))
                 .thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> userService.createUser(registrationRequest));
 
         verify(userRepository, never()).save(any(User.class));
@@ -140,11 +142,10 @@ class UserServiceTest {
 
         when(userRepository.existsByEmail(registrationRequest.getEmail()))
                 .thenReturn(false);
-
         when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
                 .thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> userService.createUser(registrationRequest));
 
         verify(userRepository, never()).save(any(User.class));
@@ -155,14 +156,12 @@ class UserServiceTest {
 
         when(userRepository.existsByEmail(registrationRequest.getEmail()))
                 .thenReturn(false);
-
         when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
                 .thenReturn(false);
-
-        when(userRepository.existsByAadhaarNumber(any()))
+        when(userRepository.existsByAadhaarNumber(registrationRequest.getAadhaarNumber()))
                 .thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> userService.createUser(registrationRequest));
 
         verify(userRepository, never()).save(any(User.class));
@@ -173,32 +172,26 @@ class UserServiceTest {
 
         when(userRepository.existsByEmail(registrationRequest.getEmail()))
                 .thenReturn(false);
-
         when(userRepository.existsByMobileNumber(registrationRequest.getMobileNumber()))
                 .thenReturn(false);
-
-        when(userRepository.existsByAadhaarNumber(any()))
+        when(userRepository.existsByAadhaarNumber(registrationRequest.getAadhaarNumber()))
                 .thenReturn(false);
-
-        when(userRepository.existsByPanNumber(any()))
+        when(userRepository.existsByPanNumber(registrationRequest.getPanNumber()))
                 .thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalStateException.class,
                 () -> userService.createUser(registrationRequest));
 
         verify(userRepository, never()).save(any(User.class));
     }
 
-    // ------------------------------------------------
     // GET USER BY ID TESTS
-    // ------------------------------------------------
 
     @Test
     void getUserById_ShouldReturnUserResponse_WhenUserExists() {
 
         when(userRepository.findById(1L))
                 .thenReturn(Optional.of(user));
-
         when(userMapper.toResponse(user))
                 .thenReturn(userResponse);
 
@@ -218,22 +211,19 @@ class UserServiceTest {
         when(userRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> userService.getUserById(1L));
 
         verify(userMapper, never()).toResponse(any(User.class));
     }
 
-    // ------------------------------------------------
     // GET USER BY CUSTOMER ID TESTS
-    // ------------------------------------------------
 
     @Test
     void getUserByCustomerId_ShouldReturnUserResponse_WhenUserExists() {
 
         when(userRepository.findByCustomerId("12345678901"))
                 .thenReturn(Optional.of(user));
-
         when(userMapper.toResponse(user))
                 .thenReturn(userResponse);
 
@@ -244,6 +234,7 @@ class UserServiceTest {
         assertEquals("John", result.getFirstName());
 
         verify(userRepository).findByCustomerId("12345678901");
+        verify(userMapper).toResponse(user);
     }
 
     @Test
@@ -252,15 +243,13 @@ class UserServiceTest {
         when(userRepository.findByCustomerId("12345678901"))
                 .thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> userService.getUserByCustomerId("12345678901"));
 
         verify(userMapper, never()).toResponse(any(User.class));
     }
 
-    // ------------------------------------------------
     // GET ALL USERS TESTS
-    // ------------------------------------------------
 
     @Test
     void getAllUsers_ShouldReturnListOfUserResponses() {
@@ -283,10 +272,8 @@ class UserServiceTest {
 
         when(userRepository.findAll())
                 .thenReturn(List.of(user, secondUser));
-
         when(userMapper.toResponse(user))
                 .thenReturn(userResponse);
-
         when(userMapper.toResponse(secondUser))
                 .thenReturn(secondResponse);
 
@@ -316,9 +303,7 @@ class UserServiceTest {
         verify(userMapper, never()).toResponse(any(User.class));
     }
 
-    // ------------------------------------------------
     // UPDATE USER TESTS
-    // ------------------------------------------------
 
     @Test
     void updateUser_ShouldReturnUpdatedUserResponse_WhenUserExists() {
@@ -333,10 +318,8 @@ class UserServiceTest {
 
         when(userRepository.findById(1L))
                 .thenReturn(Optional.of(user));
-
         when(userRepository.save(user))
                 .thenReturn(user);
-
         when(userMapper.toResponse(user))
                 .thenReturn(updatedResponse);
 
@@ -357,7 +340,7 @@ class UserServiceTest {
         when(userRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> userService.updateUser(1L, updateRequest));
 
         verify(userRepository, never()).save(any(User.class));
@@ -365,19 +348,20 @@ class UserServiceTest {
                 .updateUserFromRequest(any(UserUpdateRequest.class), any(User.class));
     }
 
-    // ------------------------------------------------
     // DELETE USER TESTS
-    // ------------------------------------------------
 
     @Test
-    void deleteUser_ShouldDeleteUser_WhenUserExists() {
+    void deleteUser_ShouldDeleteUser_WhenUserExistsAndHasNoAccounts() {
 
         when(userRepository.findById(1L))
                 .thenReturn(Optional.of(user));
+        when(accountRepository.existsByUser_Id(1L))
+                .thenReturn(false);
 
         userService.deleteUser(1L);
 
         verify(userRepository).findById(1L);
+        verify(accountRepository).existsByUser_Id(1L);
         verify(userRepository).delete(user);
     }
 
@@ -387,9 +371,25 @@ class UserServiceTest {
         when(userRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> userService.deleteUser(1L));
 
+        verify(accountRepository, never()).existsByUser_Id(anyLong());
+        verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
+    void deleteUser_ShouldThrowException_WhenUserHasAccounts() {
+
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+        when(accountRepository.existsByUser_Id(1L))
+                .thenReturn(true);
+
+        assertThrows(IllegalStateException.class,
+                () -> userService.deleteUser(1L));
+
+        verify(accountRepository).existsByUser_Id(1L);
         verify(userRepository, never()).delete(any(User.class));
     }
 }

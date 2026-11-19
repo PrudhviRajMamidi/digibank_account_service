@@ -23,12 +23,9 @@ public class UserController {
 
     private final UserService userService;
 
-    // --------------------------------------------------
-    // REGISTER USER
-    // POST /digibank/user/register
-    // --------------------------------------------------
+    // Register a new customer
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> createUser(
+    public ResponseEntity<UserResponse> registerUser(
             @Valid @RequestBody UserRegistrationRequest request) {
 
         UserResponse response = userService.createUser(request);
@@ -38,62 +35,43 @@ public class UserController {
                 .body(response);
     }
 
-    // --------------------------------------------------
-    // GET USER BY ID
-    // GET /digibank/user/{id}
-    // --------------------------------------------------
+    // Get customer by database ID
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(
             @PathVariable Long id) {
 
-        UserResponse response = userService.getUserById(id);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                userService.getUserById(id));
     }
 
-    // --------------------------------------------------
-    // GET USER BY CUSTOMER ID
-    // GET /digibank/user/customer/{customerId}
-    // --------------------------------------------------
+    // Get customer by customer ID
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<UserResponse> getUserByCustomerId(
             @PathVariable String customerId) {
 
-        UserResponse response = userService.getUserByCustomerId(customerId);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                userService.getUserByCustomerId(customerId));
     }
 
-    // --------------------------------------------------
-    // GET ALL USERS
-    // GET /digibank/user
-    // --------------------------------------------------
+    // Retrieve all customers
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAllUsers() {
 
-        List<UserResponse> users = userService.getAllUsers();
-
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(
+                userService.getAllUsers());
     }
 
-    // --------------------------------------------------
-    // UPDATE USER
-    // PATCH /digibank/user/{id}
-    // --------------------------------------------------
+    // Update customer profile
     @PatchMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserUpdateRequest request) {
 
-        UserResponse response = userService.updateUser(id, request);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                userService.updateUser(id, request));
     }
 
-    // --------------------------------------------------
-    // DELETE USER
-    // DELETE /digibank/user/{id}
-    // --------------------------------------------------
+    // Delete customer
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(
             @PathVariable Long id) {
